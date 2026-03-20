@@ -9,8 +9,9 @@ import (
 const DefaultConfigPath = "/data/config.json"
 
 type NodeConfig struct {
-	AppID            string `json:"app_id"`
-	NodePublicKey    string `json:"node_public_key"`
+	AppID          string `json:"app_id"`
+	NodeID         string `json:"node_id"`
+	NodePublicKey  string `json:"node_public_key"`
 	NodePrivateKey   string `json:"node_private_key"`   // hex，无 0x 前缀
 	HubPublicKey     string `json:"hub_public_key"`     // Hub Server 公钥，激活时自动写入，用于验证 user_credential
 	OpenIMAdminToken string `json:"openim_admin_token"`
@@ -34,6 +35,14 @@ func Load(path string) (*NodeConfig, error) {
 		cfg.TokenExpirySecs = 86400
 	}
 	return &cfg, nil
+}
+
+// Config is an alias for NodeConfig for convenience.
+type Config = NodeConfig
+
+// Activated reports whether the node has been activated (private key present).
+func (c *NodeConfig) Activated() bool {
+	return c.NodePrivateKey != ""
 }
 
 func Save(cfg *NodeConfig, path string) error {
