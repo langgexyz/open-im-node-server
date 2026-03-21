@@ -49,19 +49,17 @@ func (h *Handler) SetCode(code string) {
 
 // Activate handles POST /node/activate?code=<code> with an AES-GCM encrypted body.
 func (h *Handler) Activate(c *gin.Context) {
+	// Step 1: Fast-path check for already-activated (read-only shared state).
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.cfg.NodePrivateKey != "" {
+	alreadyActivated := h.cfg.NodePrivateKey != ""
+	h.mu.Unlock()
+	if alreadyActivated {
 		c.JSON(http.StatusConflict, gin.H{"error": "already activated"})
 		return
 	}
 
+	// Step 2: All I/O and computation outside the lock.
 	code := c.Query("code")
-	if code == "" || code != h.code {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
-		return
-	}
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil || len(body) == 0 {
@@ -82,17 +80,43 @@ func (h *Handler) Activate(c *gin.Context) {
 		return
 	}
 
+	// Step 3: Lock to re-check state, validate code, then update cfg fields.
+	h.mu.Lock()
+	if h.cfg.NodePrivateKey != "" {
+		h.mu.Unlock()
+		c.JSON(http.StatusConflict, gin.H{"error": "already activated"})
+		return
+	}
+	if code == "" || code != h.code {
+		h.mu.Unlock()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
+		return
+	}
 	h.cfg.NodeID = payload.NodeID
 	h.cfg.NodePrivateKey = payload.NodePrivateKey
 	h.cfg.NodePublicKey = payload.NodePublicKey
 	h.cfg.HubPublicKey = payload.HubPublicKey
+	h.mu.Unlock()
+
+	// Step 3: Save config outside the lock.
 	if err := config.Save(h.cfg, h.configPath); err != nil {
+		// Rollback cfg fields on failure so the code remains usable for retry.
+		h.mu.Lock()
+		h.cfg.NodeID = ""
+		h.cfg.NodePrivateKey = ""
+		h.cfg.NodePublicKey = ""
+		h.cfg.HubPublicKey = ""
+		h.mu.Unlock()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save config"})
 		return
 	}
 
-	h.code = "" // one-time use
+	// Step 4: Clear the one-time code only after a successful save.
+	h.mu.Lock()
+	h.code = ""
+	h.mu.Unlock()
 
+	// Step 5: Run post-activation callback outside the lock.
 	if h.onActivated != nil {
 		if err := h.onActivated(payload.NodeID); err != nil {
 			log.Printf("warn: post-activation init failed: %v", err)
