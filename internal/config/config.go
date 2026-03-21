@@ -19,6 +19,7 @@ type NodeConfig struct {
 	HubGRPCAddr      string `json:"hub_grpc_addr"`      // Hub Server gRPC 地址，如 hub.example.com:50051
 	NodeWSAddr       string `json:"node_ws_addr"`
 	MySQLDSN         string `json:"mysql_dsn"`
+	ETCDAddr         string `json:"etcd_addr"`          // etcd 地址，如 127.0.0.1:2379
 	TokenExpirySecs  int64  `json:"token_expiry_secs"`  // 默认 86400
 }
 
