@@ -62,7 +62,28 @@ func New(cfg *config.NodeConfig, configPath string) (*Server, error) {
 	})
 
 	// ── /node/activate (always exposed) ─────────────────────────────────────
-	activateH := activate.NewHandler(cfg, configPath, nil)
+	// onActivated: 激活完成后注册运营者 OpenIM 账号，并创建订阅群 group_id="0"
+	// 注意：cfg.OpenIMAPIAddr / cfg.OpenIMAdminToken 由运营者在激活前写入 config.json
+	onActivated := func(nodeID string) error {
+		if cfg.OpenIMAPIAddr == "" || cfg.OpenIMAdminToken == "" {
+			log.Printf("warn: openim not configured, skipping post-activation init")
+			return nil
+		}
+		cli := openim.NewClient(cfg.OpenIMAPIAddr, cfg.OpenIMAdminToken)
+		ctx := context.Background()
+		// 注册运营者账号（uid=0，幂等）
+		if err := cli.RegisterUser(ctx, 0, "operator"); err != nil {
+			log.Printf("warn: register operator user: %v", err)
+		}
+		// 创建订阅群 group_id="0"，owner="0"（幂等）
+		if err := cli.CreateGroup(ctx, "0", "0"); err != nil {
+			return fmt.Errorf("create subscription group: %w", err)
+		}
+		log.Printf("post-activation init done: node_id=%s", nodeID)
+		return nil
+	}
+
+	activateH := activate.NewHandler(cfg, configPath, onActivated)
 	if !cfg.Activated() {
 		code := generateCode()
 		activateH.SetCode(code)
