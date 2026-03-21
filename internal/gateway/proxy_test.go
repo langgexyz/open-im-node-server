@@ -27,6 +27,10 @@ func TestProxyNoRoute(t *testing.T) {
 
 func TestProxyForwards(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/publish" {
+			http.Error(w, "wrong path: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer backend.Close()
@@ -43,6 +47,6 @@ func TestProxyForwards(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+		t.Fatalf("expected 200, got %d body: %s", w.Code, w.Body.String())
 	}
 }

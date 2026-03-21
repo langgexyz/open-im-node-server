@@ -45,6 +45,18 @@ func ProxyHandler(reg *registry.Registry) gin.HandlerFunc {
 		}
 
 		proxy := httputil.NewSingleHostReverseProxy(target)
+		// 覆盖默认 Director，重写路径，移除 /biz/<service> 前缀。
+		// 例如 /biz/articles/publish → /publish
+		origDirector := proxy.Director
+		proxy.Director = func(req *http.Request) {
+			origDirector(req)
+			rest := "/"
+			if len(parts) == 2 && parts[1] != "" {
+				rest = "/" + parts[1]
+			}
+			req.URL.Path = rest
+			req.URL.RawPath = ""
+		}
 		// Wrap the writer to strip the CloseNotifier interface.
 		// gin's responseWriter panics on CloseNotify() when the underlying writer
 		// (e.g. httptest.ResponseRecorder) does not implement the deprecated
