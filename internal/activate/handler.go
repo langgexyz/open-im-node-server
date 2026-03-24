@@ -15,11 +15,14 @@ import (
 	"github.com/langgexyz/open-im-node-server/internal/config"
 )
 
+// activatePayload mirrors hub-server's activatePayload (AES-encrypted JSON sent by Hub).
 type activatePayload struct {
-	NodeID         string `json:"node_id"`
-	NodePrivateKey string `json:"node_private_key"`
-	NodePublicKey  string `json:"node_public_key"`
-	HubPublicKey   string `json:"hub_public_key"`
+	AppID         string `json:"app_id"`
+	AppPrivateKey string `json:"app_private_key"`
+	AppPublicKey  string `json:"app_public_key"`
+	HubGRPCAddr   string `json:"hub_grpc_addr"`
+	HubPublicKey  string `json:"hub_public_key"`
+	HubWebOrigin  string `json:"hub_web_origin"`
 }
 
 // OnActivatedFunc is called after activation completes.
@@ -92,17 +95,20 @@ func (h *Handler) Activate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
 		return
 	}
-	h.cfg.NodeID = payload.NodeID
-	h.cfg.NodePrivateKey = payload.NodePrivateKey
-	h.cfg.NodePublicKey = payload.NodePublicKey
+	h.cfg.AppID = payload.AppID
+	h.cfg.NodePrivateKey = payload.AppPrivateKey
+	h.cfg.NodePublicKey = payload.AppPublicKey
 	h.cfg.HubPublicKey = payload.HubPublicKey
+	if payload.HubGRPCAddr != "" {
+		h.cfg.HubGRPCAddr = payload.HubGRPCAddr
+	}
 	h.mu.Unlock()
 
 	// Step 3: Save config outside the lock.
 	if err := config.Save(h.cfg, h.configPath); err != nil {
 		// Rollback cfg fields on failure so the code remains usable for retry.
 		h.mu.Lock()
-		h.cfg.NodeID = ""
+		h.cfg.AppID = ""
 		h.cfg.NodePrivateKey = ""
 		h.cfg.NodePublicKey = ""
 		h.cfg.HubPublicKey = ""
@@ -118,7 +124,7 @@ func (h *Handler) Activate(c *gin.Context) {
 
 	// Step 5: Run post-activation callback outside the lock.
 	if h.onActivated != nil {
-		if err := h.onActivated(payload.NodeID); err != nil {
+		if err := h.onActivated(payload.AppID); err != nil {
 			log.Printf("warn: post-activation init failed: %v", err)
 		}
 	}
