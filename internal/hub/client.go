@@ -135,13 +135,12 @@ func NewNodeSignInterceptor(nodePublicKey string, nodePrivKey *ecdsa.PrivateKey)
 			return fmt.Errorf("sign grpc request: %w", err)
 		}
 
-		md := metadata.Pairs(
+		ctx = metadata.AppendToOutgoingContext(ctx,
 			"x-node-public-key", nodePublicKey,
 			"x-node-timestamp", timestamp,
 			"x-node-body-hash", hex.EncodeToString(bodyHash),
 			"x-node-sig", hex.EncodeToString(sig),
 		)
-		ctx = metadata.NewOutgoingContext(ctx, md)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

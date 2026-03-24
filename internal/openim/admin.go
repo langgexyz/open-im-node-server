@@ -68,6 +68,7 @@ func (c *Client) postRaw(ctx context.Context, path string, body []byte) (*apiRes
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("token", c.adminToken)
+	req.Header.Set("operationID", fmt.Sprintf("%d", time.Now().UnixNano()))
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("openim http: %w", err)
@@ -88,7 +89,8 @@ func (c *Client) RegisterUser(ctx context.Context, nodeUID uint64, nickname stri
 	if err != nil {
 		return err
 	}
-	if resp.ErrCode != 0 && resp.ErrCode != 10002 {
+	// 1102 = RegisteredAlreadyError，10002 = 旧版已存在，均忽略（幂等）
+	if resp.ErrCode != 0 && resp.ErrCode != 1102 && resp.ErrCode != 10002 {
 		return fmt.Errorf("register user: %s (code %d)", resp.ErrMsg, resp.ErrCode)
 	}
 	return nil
@@ -152,13 +154,6 @@ func (c *Client) GetGroupMemberNodeUIDs(ctx context.Context, groupID string) ([]
 	return ids, nil
 }
 
-type onlineData struct {
-	StatusList []struct {
-		UserID      string `json:"userID"`
-		OnlineState int32  `json:"onlineState"`
-	} `json:"statusList"`
-}
-
 // GetOfflineNodeUIDs 在给定 nodeUID 列表中返回当前离线的 node_uid
 func (c *Client) GetOfflineNodeUIDs(ctx context.Context, nodeUIDs []uint64) ([]uint64, error) {
 	if len(nodeUIDs) == 0 {
@@ -176,13 +171,17 @@ func (c *Client) GetOfflineNodeUIDs(ctx context.Context, nodeUIDs []uint64) ([]u
 	if resp.ErrCode != 0 {
 		return nil, fmt.Errorf("get online status: %s (code %d)", resp.ErrMsg, resp.ErrCode)
 	}
-	var data onlineData
-	if err := json.Unmarshal(resp.Data, &data); err != nil {
+	// OpenIM v3 返回 data 直接为数组：[{"userID":"2","status":0,...}]
+	var list []struct {
+		UserID string `json:"userID"`
+		Status int32  `json:"status"`
+	}
+	if err := json.Unmarshal(resp.Data, &list); err != nil {
 		return nil, fmt.Errorf("decode status: %w", err)
 	}
 	var offline []uint64
-	for _, s := range data.StatusList {
-		if s.OnlineState == 0 {
+	for _, s := range list {
+		if s.Status == 0 {
 			id, _ := strconv.ParseUint(s.UserID, 10, 64)
 			offline = append(offline, id)
 		}
@@ -205,7 +204,8 @@ func (c *Client) CreateGroup(ctx context.Context, groupID, ownerUserID string) e
 	if err != nil {
 		return err
 	}
-	if resp.ErrCode != 0 && resp.ErrCode != 10006 {
+	// 1202 = GroupIDExisted，10006 = 旧版已存在，均忽略（幂等）
+	if resp.ErrCode != 0 && resp.ErrCode != 1202 && resp.ErrCode != 10006 {
 		return fmt.Errorf("create group: %s (code %d)", resp.ErrMsg, resp.ErrCode)
 	}
 	return nil

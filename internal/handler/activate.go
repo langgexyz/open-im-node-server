@@ -68,13 +68,14 @@ func Activate(p ActivateParams) (*config.NodeConfig, error) {
 		return nil, fmt.Errorf("register owner in openim: %w", err)
 	}
 	ownerIDStr := strconv.FormatUint(ownerUID, 10)
-	if err := openimCli.CreateGroup(ctx, appID, ownerIDStr); err != nil {
+	// 默认订阅群 ID 固定为 "0"（设计规范要求，OpenIM 接受纯数字字符串）
+	if err := openimCli.CreateGroup(ctx, "0", ownerIDStr); err != nil {
 		return nil, fmt.Errorf("create channel group: %w", err)
 	}
 
 	cfg := &config.NodeConfig{
-		AppID:            appID,
-		NodePublicKey:    pubKey,
+		AppID:          appID,
+		NodePublicKey:  pubKey,
 		NodePrivateKey:   bridgecrypto.PrivKeyToHex(privKey),
 		HubPublicKey:     hubPublicKey,
 		OpenIMAdminToken: p.OpenIMAdminToken,
