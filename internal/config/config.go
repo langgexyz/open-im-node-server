@@ -16,6 +16,7 @@ type NodeConfig struct {
 	HubPublicKey     string `json:"hub_public_key"`     // Hub Server 公钥，激活时自动写入，用于验证 user_credential
 	OpenIMAdminToken string `json:"openim_admin_token"`
 	OpenIMAPIAddr    string `json:"openim_api_addr"`
+	OpenIMWSAddr     string `json:"openim_ws_addr"`
 	HubGRPCAddr      string `json:"hub_grpc_addr"`      // Hub Server gRPC 地址，如 hub.example.com:50051
 	NodeWSAddr       string `json:"node_ws_addr"`
 	MySQLDSN         string `json:"mysql_dsn"`
