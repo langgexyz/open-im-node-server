@@ -99,6 +99,9 @@ func (h *Handler) Activate(c *gin.Context) {
 	h.cfg.NodePrivateKey = payload.AppPrivateKey
 	h.cfg.NodePublicKey = payload.AppPublicKey
 	h.cfg.HubPublicKey = payload.HubPublicKey
+	if payload.HubWebOrigin != "" {
+		h.cfg.HubWebOrigin = payload.HubWebOrigin
+	}
 	if payload.HubGRPCAddr != "" {
 		h.cfg.HubGRPCAddr = payload.HubGRPCAddr
 	}

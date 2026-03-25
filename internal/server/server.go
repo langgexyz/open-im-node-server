@@ -58,6 +58,8 @@ func New(cfg *config.NodeConfig, configPath string) (*Server, error) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "ok",
 			"activated": cfg.Activated(),
+			"hub_web_origin": cfg.HubWebOrigin,
+			"app_id":    cfg.AppID,
 		})
 	})
 

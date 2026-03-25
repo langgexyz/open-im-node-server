@@ -21,6 +21,7 @@ type NodeConfig struct {
 	NodeWSAddr       string `json:"node_ws_addr"`
 	MySQLDSN         string `json:"mysql_dsn"`
 	ETCDAddr         string `json:"etcd_addr"`          // etcd 地址，如 127.0.0.1:2379
+	HubWebOrigin      string `json:"hub_web_origin"`     // Hub Web 前端地址，激活时由 Hub 下发
 	TokenExpirySecs  int64  `json:"token_expiry_secs"`  // 默认 86400
 }
 
