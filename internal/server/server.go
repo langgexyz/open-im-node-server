@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/langgexyz/open-im-node-server/internal/activate"
@@ -52,6 +53,12 @@ type Server struct {
 func New(cfg *config.NodeConfig, configPath string) (*Server, error) {
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: false,
+	}))
 
 	// ── /node/info (always exposed) ──────────────────────────────────────────
 	r.GET("/node/info", func(c *gin.Context) {
